@@ -13,6 +13,7 @@ def make_scaffold_graph(
     slice: int = 0,
     include_root: bool = False,
     include_n_ancestors: int = 0,
+    neighbor_cutoff: float = 8.0,
 ) -> tuple["residue_graph.ResidueGraph", list]:
     """
     Make a ResidueGraph from a glycosylated scaffold in order to optimize the conformations of the attached glycans.
@@ -57,7 +58,7 @@ def make_scaffold_graph(
 
     _flat_residues = list(scaffold.get_residues())
     _res_coords = [res.coord for res in _flat_residues]
-    dists = structural.cdist(_res_coords, _res_coords) < 8.0
+    dists = structural.cdist(_res_coords, _res_coords) < neighbor_cutoff
 
     for root, glycan in glycan_gen:
 
