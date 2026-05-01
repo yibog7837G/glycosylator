@@ -73,7 +73,7 @@ class ScaffoldRotatron(ConstraintRotatron):
         repulsion_weight: float = 25.0,
         repulsion_power: float = 2.0,
         overlap_distance: float | None = None,
-        overlap_weight: float = 0.0,
+        overlap_weight: float = 1.0,
         **kwargs,
     ):
         super().__init__(base_rotatron, self.constraint, **kwargs)
@@ -189,12 +189,9 @@ class ScaffoldRotatron(ConstraintRotatron):
         return total_penalty
 
     def _compute_overlap_penalty(self, state: np.ndarray) -> float:
-        if (
-            not self.overlap_distance
-            or self.overlap_distance <= 0
-            or not self.overlap_weight
-            or self.overlap_weight <= 0
-        ):
+        if self.overlap_distance is None or self.overlap_distance <= 0:
+            return 0.0
+        if self.overlap_weight is None or self.overlap_weight <= 0:
             return 0.0
 
         total_penalty = 0.0
