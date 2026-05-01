@@ -22,7 +22,7 @@ class OptimizationConfig:
     repulsion_weight: float = 25.0
     repulsion_power: float = 2.0
     overlap_distance: float = 0.0
-    overlap_weight: float = 0.0
+    overlap_weight: float = 1.0
     hollow_out_cutoff: float = 0.75
     early_stop_score: int = 0
 
