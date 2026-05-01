@@ -189,9 +189,11 @@ class ScaffoldRotatron(ConstraintRotatron):
         return total_penalty
 
     def _compute_overlap_penalty(self, state: np.ndarray) -> float:
-        if self.overlap_distance is None or self.overlap_distance <= 0:
-            return 0.0
-        if self.overlap_weight <= 0:
+        if (
+            self.overlap_distance is None
+            or self.overlap_distance <= 0
+            or self.overlap_weight <= 0
+        ):
             return 0.0
 
         total_penalty = 0.0
