@@ -18,11 +18,11 @@ class OptimizationConfig:
     radius: float = 15.0
     pushback: float = 4.0
     n_split: int = 4
-    use_repulsion: bool = False
     repulsion_distance: float = 1.0
     repulsion_weight: float = 25.0
     repulsion_power: float = 2.0
-    use_hollow_out: bool = True
+    overlap_distance: float | None = None
+    overlap_weight: float = 1.0
     hollow_out_cutoff: float = 0.75
     early_stop_score: int = 0
 
@@ -72,18 +72,17 @@ def optimize_once(glycoprotein, config: OptimizationConfig):
     glycoprotein = gl.optimizers.optimize(glycoprotein, env)
 
     split = gl.optimizers.split_environment(env, config.n_split)
-    if config.use_repulsion:
-        split = [
-            gl.optimizers.ScaffoldRotatron(
-                rot,
-                repulsion_distance=config.repulsion_distance,
-                repulsion_weight=config.repulsion_weight,
-                repulsion_power=config.repulsion_power,
-            )
-            for rot in split
-        ]
-    else:
-        split = [gl.optimizers.ScaffoldRotatron(rot) for rot in split]
+    split = [
+        gl.optimizers.ScaffoldRotatron(
+            rot,
+            repulsion_distance=config.repulsion_distance,
+            repulsion_weight=config.repulsion_weight,
+            repulsion_power=config.repulsion_power,
+            overlap_distance=config.overlap_distance,
+            overlap_weight=config.overlap_weight,
+        )
+        for rot in split
+    ]
 
     return gl.optimizers.parallel_optimize(glycoprotein, split)
 
@@ -100,8 +99,7 @@ def optimize_glycoprotein(glycoprotein, config: OptimizationConfig):
         np.random.seed(seed)
 
         gp_try = glycoprotein.copy()
-        if config.use_hollow_out:
-            gp_try.hollow_out(cutoff=config.hollow_out_cutoff)
+        gp_try.hollow_out(cutoff=config.hollow_out_cutoff)
         gp_try = optimize_once(gp_try, config)
         gp_try.fill()
         score = score_clashes(gp_try)
@@ -205,11 +203,11 @@ def main():
 
     config = OptimizationConfig(
         n_runs=16,
-        use_repulsion=True,
-        repulsion_distance=1.0,
-        repulsion_weight=30.0,
+        repulsion_distance=1.2,
+        repulsion_weight=50.0,
         repulsion_power=2.0,
-        use_hollow_out=True,
+        overlap_distance=0.9,
+        overlap_weight=10000.0,
         hollow_out_cutoff=0.75,
     )
 

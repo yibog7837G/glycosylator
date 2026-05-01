@@ -59,6 +59,10 @@ class ScaffoldRotatron(ConstraintRotatron):
         Scaling factor for the repulsion penalty term.
     repulsion_power: float, optional
         Exponent applied to the normalized overlap term to emphasize close contacts.
+    overlap_distance: float, optional
+        If provided, add a hard overlap penalty when glycan atoms are closer than this distance (in Å) to scaffold atoms.
+    overlap_weight: float, optional
+        Scaling factor for the hard overlap penalty term.
     """
 
     def __init__(
@@ -68,6 +72,8 @@ class ScaffoldRotatron(ConstraintRotatron):
         repulsion_distance: float | None = None,
         repulsion_weight: float = 25.0,
         repulsion_power: float = 2.0,
+        overlap_distance: float | None = None,
+        overlap_weight: float = 1.0,
         **kwargs,
     ):
         super().__init__(base_rotatron, self.constraint, **kwargs)
@@ -83,6 +89,8 @@ class ScaffoldRotatron(ConstraintRotatron):
         self.repulsion_distance = repulsion_distance
         self.repulsion_weight = repulsion_weight
         self.repulsion_power = repulsion_power
+        self.overlap_distance = overlap_distance
+        self.overlap_weight = overlap_weight
 
     def _identify_nodes(self):
         """
@@ -137,7 +145,13 @@ class ScaffoldRotatron(ConstraintRotatron):
     def constraint(self, rotatron, state, **kwargs):
         scaffold_dist, glycan_dist = self._compute_glycan_scaffold_distances(state)
         repulsion = self._compute_repulsion(state)
-        return 5 * scaffold_dist + 10 * glycan_dist + self.repulsion_weight * repulsion
+        overlap_penalty = self._compute_overlap_penalty(state)
+        return (
+            5 * scaffold_dist
+            + 10 * glycan_dist
+            + self.repulsion_weight * repulsion
+            + self.overlap_weight * overlap_penalty
+        )
 
     def _normal_compute_glycan_scaffold_distances(self, state: np.ndarray):
         """
@@ -170,6 +184,33 @@ class ScaffoldRotatron(ConstraintRotatron):
             )
             if self.repulsion_power != 1:
                 overlaps = overlaps**self.repulsion_power
+            total_penalty += overlaps.sum()
+
+        return total_penalty
+
+    def _compute_overlap_penalty(self, state: np.ndarray) -> float:
+        if (
+            self.overlap_distance is None
+            or self.overlap_distance <= 0
+            or self.overlap_weight <= 0
+        ):
+            return 0.0
+
+        total_penalty = 0.0
+        for glycan_nodes, scaffold_nodes in zip(
+            self.each_glycan_nodes, self.each_glycan_scaffold_vicinity_nodes
+        ):
+            if len(glycan_nodes) == 0 or len(scaffold_nodes) == 0:
+                continue
+            glycan_coords = state[glycan_nodes]
+            scaffold_coords = state[scaffold_nodes]
+            distances = cdist(glycan_coords, scaffold_coords)
+            mask = distances < self.overlap_distance
+            if not mask.any():
+                continue
+            overlaps = (self.overlap_distance - distances[mask]) / (
+                self.overlap_distance
+            )
             total_penalty += overlaps.sum()
 
         return total_penalty
