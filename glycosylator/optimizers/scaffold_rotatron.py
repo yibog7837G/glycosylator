@@ -53,9 +53,23 @@ class ScaffoldRotatron(ConstraintRotatron):
     ----------
     base_rotatron: Rotatron
         The Rotatron to use for the base optimization. This needs to be a fully initialized Rotatron.
+    repulsion_distance: float, optional
+        If provided, add an explicit repulsive penalty when glycan atoms are closer than this distance (in Å) to scaffold atoms.
+    repulsion_weight: float, optional
+        Scaling factor for the repulsion penalty term.
+    repulsion_power: float, optional
+        Exponent applied to the normalized overlap term to emphasize close contacts.
     """
 
-    def __init__(self, base_rotatron: "Rotatron", *args, **kwargs):
+    def __init__(
+        self,
+        base_rotatron: "Rotatron",
+        *args,
+        repulsion_distance: float | None = None,
+        repulsion_weight: float = 25.0,
+        repulsion_power: float = 2.0,
+        **kwargs,
+    ):
         super().__init__(base_rotatron, self.constraint, **kwargs)
         self.mol = base_rotatron.graph._molecule
         self.graph = base_rotatron.graph
@@ -66,6 +80,9 @@ class ScaffoldRotatron(ConstraintRotatron):
         )
         self.n_edges = len(self.rotatron.rotatable_edges)
         self.rotatable_edges = self.rotatron.rotatable_edges
+        self.repulsion_distance = repulsion_distance
+        self.repulsion_weight = repulsion_weight
+        self.repulsion_power = repulsion_power
 
     def _identify_nodes(self):
         """
@@ -119,7 +136,8 @@ class ScaffoldRotatron(ConstraintRotatron):
 
     def constraint(self, rotatron, state, **kwargs):
         scaffold_dist, glycan_dist = self._compute_glycan_scaffold_distances(state)
-        return 5 * scaffold_dist + 10 * glycan_dist
+        repulsion = self._compute_repulsion(state)
+        return 5 * scaffold_dist + 10 * glycan_dist + self.repulsion_weight * repulsion
 
     def _normal_compute_glycan_scaffold_distances(self, state: np.ndarray):
         """
@@ -130,6 +148,31 @@ class ScaffoldRotatron(ConstraintRotatron):
             self.each_glycan_scaffold_vicinity_nodes,
             state,
         )
+
+    def _compute_repulsion(self, state: np.ndarray) -> float:
+        if not self.repulsion_distance or self.repulsion_distance <= 0:
+            return 0.0
+
+        total_penalty = 0.0
+        for glycan_nodes, scaffold_nodes in zip(
+            self.each_glycan_nodes, self.each_glycan_scaffold_vicinity_nodes
+        ):
+            if len(glycan_nodes) == 0 or len(scaffold_nodes) == 0:
+                continue
+            glycan_coords = state[glycan_nodes]
+            scaffold_coords = state[scaffold_nodes]
+            distances = cdist(glycan_coords, scaffold_coords)
+            mask = distances < self.repulsion_distance
+            if not mask.any():
+                continue
+            overlaps = (self.repulsion_distance - distances[mask]) / (
+                self.repulsion_distance
+            )
+            if self.repulsion_power != 1:
+                overlaps = overlaps**self.repulsion_power
+            total_penalty += overlaps.sum()
+
+        return total_penalty
 
 
 if __name__ == "__main__":
