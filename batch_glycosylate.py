@@ -21,6 +21,8 @@ class OptimizationConfig:
     repulsion_distance: float = 1.0
     repulsion_weight: float = 25.0
     repulsion_power: float = 2.0
+    overlap_distance: float = 0.0
+    overlap_weight: float = 0.0
     hollow_out_cutoff: float = 0.75
     early_stop_score: int = 0
 
@@ -76,6 +78,8 @@ def optimize_once(glycoprotein, config: OptimizationConfig):
             repulsion_distance=config.repulsion_distance,
             repulsion_weight=config.repulsion_weight,
             repulsion_power=config.repulsion_power,
+            overlap_distance=config.overlap_distance,
+            overlap_weight=config.overlap_weight,
         )
         for rot in split
     ]
@@ -199,9 +203,11 @@ def main():
 
     config = OptimizationConfig(
         n_runs=16,
-        repulsion_distance=1.0,
-        repulsion_weight=30.0,
+        repulsion_distance=1.2,
+        repulsion_weight=50.0,
         repulsion_power=2.0,
+        overlap_distance=0.9,
+        overlap_weight=10000.0,
         hollow_out_cutoff=0.75,
     )
 
